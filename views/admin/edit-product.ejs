@@ -14,11 +14,11 @@
             <div class="form-control">
                 <label for="title">Title</label>
                 <input 
-                    
+                    class="<%= validationErrors.find(e => e.param === 'title') ? 'invalid' : '' %>"
                     type="text" 
                     name="title" 
                     id="title" 
-                   >
+                    value="<% if (editing || hasError) { %><%= product.title %><% } %>">
             </div>
             <!-- <div class="form-control">
                 <label for="imageUrl">Image URL</label>
