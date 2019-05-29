@@ -1,3 +1,7 @@
+const fs = require('fs');
+const path = require('path')
+const PDFDocument = require('pdfkit');
+
 const Product = require('../models/product');
 const Order = require('../models/order');
 
@@ -12,7 +16,9 @@ exports.getProducts = (req, res, next) => {
       });
     })
     .catch(err => {
-      console.log(err);
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
     });
 };
 
@@ -26,7 +32,11 @@ exports.getProduct = (req, res, next) => {
         path: '/products'
       });
     })
-    .catch(err => console.log(err));
+    .catch(err => {
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
+    });
 };
 
 exports.getIndex = (req, res, next) => {
@@ -39,7 +49,9 @@ exports.getIndex = (req, res, next) => {
       });
     })
     .catch(err => {
-      console.log(err);
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
     });
 };
 
@@ -55,7 +67,11 @@ exports.getCart = (req, res, next) => {
         products: products
       });
     })
-    .catch(err => console.log(err));
+    .catch(err => {
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
+    });
 };
 
 exports.postCart = (req, res, next) => {
@@ -67,6 +83,11 @@ exports.postCart = (req, res, next) => {
     .then(result => {
       console.log(result);
       res.redirect('/cart');
+    })
+    .catch(err => {
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
     });
 };
 
@@ -77,7 +98,11 @@ exports.postCartDeleteProduct = (req, res, next) => {
     .then(result => {
       res.redirect('/cart');
     })
-    .catch(err => console.log(err));
+    .catch(err => {
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
+    });
 };
 
 exports.postOrder = (req, res, next) => {
@@ -103,7 +128,11 @@ exports.postOrder = (req, res, next) => {
     .then(() => {
       res.redirect('/orders');
     })
-    .catch(err => console.log(err));
+    .catch(err => {
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
+    });
 };
 
 exports.getOrders = (req, res, next) => {
@@ -115,5 +144,64 @@ exports.getOrders = (req, res, next) => {
         orders: orders
       });
     })
-    .catch(err => console.log(err));
+    .catch(err => {
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
+    });
 };
+
+
+exports.getInvoice = (req, res, next) =>{
+  const orderId= req.params.orderId;
+  const invoiceName  = "invoice-" + orderId + ".pdf";
+
+  Order.findById(orderId)
+  .then(order =>{
+     if(!order){      
+       return next(new Error('No Order Found'))
+     }
+     if(order.user.userId.toString() === req.user._id.toString()){
+
+      const filepath = path.join('data', "invoices", invoiceName)
+
+      const pdfDoc = new PDFDocument();
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        'Content-Disposition',
+        'inline; filename="'+invoiceName+'"'
+        );
+        
+      pdfDoc.pipe(fs.createWriteStream(filepath));
+      pdfDoc.pipe(res);
+
+      pdfDoc.fontSize(26).text("INVOICE", {
+        underline: true
+      });
+      pdfDoc.text("----------------------------");
+      
+      let totalPrice  = 0;
+      order.products.forEach(prod =>{
+        totalPrice = totalPrice + prod.quantity * prod.product.price
+        pdfDoc.fontSize(16).text(prod.product.title + " - " + prod.quantity + " x $"+ prod.product.price)
+      })
+      pdfDoc.text('------------');
+      pdfDoc.fontSize(18).text("Total Cost = $"+totalPrice)
+      pdfDoc.end();
+
+
+
+      
+      // const file = fs.createReadStream(filepath)
+      // res.setHeader("Content-Type", "application/pdf");
+      // res.setHeader(
+      //   'Content-Disposition',
+      //   'inline; filename="'+invoiceName+'"'
+      //   );
+      //   file.pipe(res)
+     }
+  })
+  .catch( err => {
+    console.log("file does not exist", err)
+  })
+}
